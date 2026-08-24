@@ -1,0 +1,4 @@
+import { db, ensureDatabase } from "../../../lib/db";
+import { requireUser } from "../../../lib/auth";
+export async function GET(){const a=await requireUser();if(a.response)return a.response;await ensureDatabase();const r=await db()`SELECT * FROM companies ORDER BY id LIMIT 1`;return Response.json(r[0]||null)}
+export async function PUT(req:Request){const a=await requireUser(["admin"]);if(a.response)return a.response;const b=await req.json();await ensureDatabase();const r=await db()`UPDATE companies SET name=${b.name},postal_address=${b.postal_address},physical_location=${b.physical_location},country=${b.country},tin=${b.tin},vrn=${b.vrn},email=${b.email},phone=${b.phone},website=${b.website},declaration=${b.declaration},invoice_number_format=${b.invoice_number_format},updated_at=NOW() WHERE id=(SELECT id FROM companies ORDER BY id LIMIT 1) RETURNING *`;return Response.json(r[0])}
