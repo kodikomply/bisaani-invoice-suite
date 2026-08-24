@@ -25,4 +25,4 @@ For the complete Nginx, systemd, PostgreSQL, HTTPS, firewall, backup, and subdom
 
 ## Render deployment
 
-The included `render.yaml` pins Node.js 22, provisions PostgreSQL, installs build dependencies, and configures the web service. When configuring a service manually, use `npm ci --include=dev && npm run build` as the build command and `npm run start` as the start command.
+The included `render.yaml` pins Node.js 22, provisions PostgreSQL, and configures the standard Next.js web service. When configuring a service manually, use `npm ci && npm run build` as the build command and `npm run start` as the start command.
