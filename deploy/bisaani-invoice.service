@@ -1,0 +1,24 @@
+[Unit]
+Description=Bisaani Invoice Suite
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=bisaani
+Group=bisaani
+WorkingDirectory=/var/www/bisaani-invoice
+Environment=NODE_ENV=production
+Environment=PORT=3000
+EnvironmentFile=/var/www/bisaani-invoice/.env
+ExecStart=/usr/bin/npm run start
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/var/www/bisaani-invoice/.wrangler
+
+[Install]
+WantedBy=multi-user.target
