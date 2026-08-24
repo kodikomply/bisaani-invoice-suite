@@ -46,7 +46,6 @@ export async function PUT(req: Request) {
       quantity: number(i.quantity),
       rate: number(i.rate),
       per: String(i.per || "Unit"),
-      vat: number(i.vat),
     }));
     if (items.some((i: any) => !i.description || i.quantity < 0 || i.rate < 0))
       return Response.json(
@@ -60,17 +59,7 @@ export async function PUT(req: Request) {
       (s: number, i: any) => s + i.quantity * i.rate,
       0,
     );
-    const globalRate =
-      b.vatMode === "18%"
-        ? 18
-        : b.vatMode === "Custom"
-          ? Math.max(0, Math.min(100, number(b.customVatRate)))
-          : 0;
-    const vat = items.reduce(
-      (s: number, i: any) =>
-        s + i.quantity * i.rate * ((i.vat || globalRate) / 100),
-      0,
-    );
+    const vat = 0;
     const total = subtotal + vat;
     await ensureDatabase();
     const sql = db();
@@ -100,13 +89,13 @@ export async function PUT(req: Request) {
         if (duplicate.length) throw new Error("DUPLICATE_INVOICE_NUMBER");
       }
       const saved = existingDraft.length
-        ? await tx`UPDATE invoices SET customer_id=${customerId},bank_account_id=${b.bankAccountId || null},invoice_number=${b.invoiceNo},invoice_date=${b.date},due_date=${b.due || null},supplier_reference=${b.supplierReference || null},other_reference=${b.otherReference || null},currency=${b.currency},vat_mode=${b.vatMode},custom_vat_rate=${globalRate},subtotal=${subtotal},vat_total=${vat},total=${total},amount_words=${b.amountWords},include_signature=${!!b.includeSig},include_stamp=FALSE,updated_by=${a.user!.id},updated_at=NOW() WHERE id=${existingDraft[0].id} RETURNING id`
-        : await tx`INSERT INTO invoices(company_id,customer_id,bank_account_id,invoice_number,invoice_date,due_date,supplier_reference,other_reference,currency,vat_mode,custom_vat_rate,subtotal,vat_total,total,amount_words,status,include_signature,include_stamp,created_by,updated_by) VALUES(${company[0].id},${customerId},${b.bankAccountId || null},${b.invoiceNo},${b.date},${b.due || null},${b.supplierReference || null},${b.otherReference || null},${b.currency},${b.vatMode},${globalRate},${subtotal},${vat},${total},${b.amountWords},'Draft',${!!b.includeSig},FALSE,${a.user!.id},${a.user!.id}) RETURNING id`;
+        ? await tx`UPDATE invoices SET customer_id=${customerId},bank_account_id=${b.bankAccountId || null},invoice_number=${b.invoiceNo},invoice_date=${b.date},due_date=${b.due || null},supplier_reference=${b.supplierReference || null},other_reference=${b.otherReference || null},currency=${b.currency},vat_mode='None',custom_vat_rate=0,subtotal=${subtotal},vat_total=0,total=${total},amount_words=${b.amountWords},include_signature=${!!b.includeSig},include_stamp=FALSE,updated_by=${a.user!.id},updated_at=NOW() WHERE id=${existingDraft[0].id} RETURNING id`
+        : await tx`INSERT INTO invoices(company_id,customer_id,bank_account_id,invoice_number,invoice_date,due_date,supplier_reference,other_reference,currency,vat_mode,custom_vat_rate,subtotal,vat_total,total,amount_words,status,include_signature,include_stamp,created_by,updated_by) VALUES(${company[0].id},${customerId},${b.bankAccountId || null},${b.invoiceNo},${b.date},${b.due || null},${b.supplierReference || null},${b.otherReference || null},${b.currency},'None',0,${subtotal},0,${total},${b.amountWords},'Draft',${!!b.includeSig},FALSE,${a.user!.id},${a.user!.id}) RETURNING id`;
       invoiceId = Number(saved[0].id);
       await tx`DELETE FROM invoice_items WHERE invoice_id=${invoiceId}`;
       for (let p = 0; p < items.length; p++) {
         const i = items[p];
-        await tx`INSERT INTO invoice_items(invoice_id,position,description,quantity,rate,per_unit,vat_rate,amount) VALUES(${invoiceId},${p},${i.description},${i.quantity},${i.rate},${i.per},${i.vat || globalRate},${i.quantity * i.rate})`;
+        await tx`INSERT INTO invoice_items(invoice_id,position,description,quantity,rate,per_unit,vat_rate,amount) VALUES(${invoiceId},${p},${i.description},${i.quantity},${i.rate},${i.per},0,${i.quantity * i.rate})`;
       }
       await tx`INSERT INTO audit_logs(user_id,action,entity_type,entity_id) VALUES(${a.user!.id},'invoice.saved','invoice',${String(invoiceId)})`;
     });

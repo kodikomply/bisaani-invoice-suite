@@ -2,6 +2,8 @@
 "use client";
 import { useEffect, useState } from "react";
 type Rec = Record<string, any>;
+const currencyName = (currency: string) =>
+  currency === "TZS" ? "TSH" : currency;
 const Field = ({
   label,
   name,
@@ -49,7 +51,7 @@ export function DashboardPanel({
     totals
       .map(
         (t: Rec) =>
-          `${t.currency} ${Number(t[key] || 0).toLocaleString("en-US", { minimumFractionDigits: t.currency === "USD" ? 2 : 0, maximumFractionDigits: t.currency === "USD" ? 2 : 0 })}`,
+          `${currencyName(t.currency)} ${Number(t[key] || 0).toLocaleString("en-US", { minimumFractionDigits: t.currency === "USD" ? 2 : 0, maximumFractionDigits: t.currency === "USD" ? 2 : 0 })}`,
       )
       .join(" · ") || "No data";
   const count = totals.reduce(
@@ -124,7 +126,8 @@ export function DashboardPanel({
                     <small>{i.customer}</small>
                   </div>
                   <strong>
-                    {i.currency} {Number(i.total).toLocaleString()}
+                    {currencyName(i.currency)}{" "}
+                    {Number(i.total).toLocaleString()}
                   </strong>
                   <em className={String(i.status).toLowerCase()}>{i.status}</em>
                 </div>
@@ -256,7 +259,7 @@ export function SettingsPanel() {
           </div>
           <button
             className="text-btn"
-            onClick={() => setEditing({ currency: "USD" })}
+            onClick={() => setEditing({ currency: "TZS" })}
           >
             ＋ Add bank account
           </button>
@@ -269,7 +272,8 @@ export function SettingsPanel() {
             <div>
               <b>{b.bank_name}</b>
               <span>
-                {b.account_name} · {b.currency} · {b.account_number}
+                {b.account_name} · {currencyName(b.currency)} ·{" "}
+                {b.account_number}
               </span>
               <small>
                 {b.branch} {b.swift_code && `· SWIFT ${b.swift_code}`}
@@ -319,9 +323,9 @@ export function SettingsPanel() {
             />
             <label className="field">
               <span>Currency</span>
-              <select name="currency" defaultValue={editing.currency || "USD"}>
-                <option>USD</option>
-                <option>TZS</option>
+              <select name="currency" defaultValue={editing.currency || "TZS"}>
+                <option value="TZS">TSH</option>
+                <option value="USD">USD</option>
               </select>
             </label>
             <Field label="Branch" name="branch" value={editing.branch} />
@@ -543,7 +547,7 @@ export function InvoicesPanel({ onEdit }: { onEdit: () => void }) {
             <span>{i.customer}</span>
             <span>{new Date(i.invoice_date).toLocaleDateString()}</span>
             <b>
-              {i.currency} {Number(i.total).toLocaleString()}
+              {currencyName(i.currency)} {Number(i.total).toLocaleString()}
             </b>
             <select
               value={i.status}

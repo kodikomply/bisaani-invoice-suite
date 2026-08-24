@@ -7,8 +7,9 @@ type Item = {
   quantity: number;
   rate: number;
   per: string;
-  vat: number;
 };
+const currencyLabel = (currency: string) =>
+  currency === "TZS" ? "TSH" : currency;
 const units = [
   "Trip",
   "Container",
@@ -21,7 +22,7 @@ const units = [
   "Custom",
 ];
 const fmt = (n: number, c: string) =>
-  `${c} ${Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: c === "USD" ? 2 : 0, maximumFractionDigits: c === "USD" ? 2 : 0 })}`;
+  `${currencyLabel(c)} ${Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: c === "USD" ? 2 : 0, maximumFractionDigits: c === "USD" ? 2 : 0 })}`;
 function numberWords(n: number): string {
   const a = [
       "",
@@ -102,9 +103,7 @@ export function InvoiceWorkspace() {
     [due, setDue] = useState(""),
     [supplierRef, setSupplierRef] = useState(""),
     [otherRef, setOtherRef] = useState(""),
-    [currency, setCurrency] = useState("USD"),
-    [vatMode, setVatMode] = useState("Exempt"),
-    [customVat, setCustomVat] = useState(0),
+    [currency, setCurrency] = useState("TZS"),
     [signature, setSignature] = useState(true),
     [items, setItems] = useState<Item[]>([
       {
@@ -113,7 +112,6 @@ export function InvoiceWorkspace() {
         quantity: 1,
         rate: 0,
         per: "Trip",
-        vat: 0,
       },
     ]),
     [status, setStatus] = useState("Not saved"),
@@ -149,29 +147,17 @@ export function InvoiceWorkspace() {
         setSupplierRef(d.supplier_reference || "");
         setOtherRef(d.other_reference || "");
         setCurrency(d.currency);
-        setVatMode(d.vat_mode);
-        setCustomVat(Number(d.custom_vat_rate || 0));
         setSignature(d.include_signature);
         if (d.items?.length) setItems(d.items);
         setStatus("Draft loaded");
       }
     });
   }, []);
-  const globalRate =
-      vatMode === "18%" ? 18 : vatMode === "Custom" ? customVat : 0,
-    subtotal = useMemo(
+  const subtotal = useMemo(
       () => items.reduce((s, i) => s + i.quantity * i.rate, 0),
       [items],
     ),
-    vat = useMemo(
-      () =>
-        items.reduce(
-          (s, i) => s + i.quantity * i.rate * ((i.vat || globalRate) / 100),
-          0,
-        ),
-      [items, globalRate],
-    ),
-    total = subtotal + vat,
+    total = subtotal,
     bank = banks.find((b) => String(b.id) === bankId);
   const chooseCustomer = (v: string) => {
     setCustomerId(v);
@@ -205,8 +191,6 @@ export function InvoiceWorkspace() {
     supplierReference: supplierRef,
     otherReference: otherRef,
     currency,
-    vatMode,
-    customVatRate: customVat,
     includeSig: signature,
     items,
     amountWords: `${currency === "TZS" ? "Tanzanian Shillings" : "USD"} ${numberWords(total)} Only.`,
@@ -245,8 +229,6 @@ export function InvoiceWorkspace() {
     supplierRef,
     otherRef,
     currency,
-    vatMode,
-    customVat,
     bankId,
     items,
     signature,
@@ -358,8 +340,8 @@ export function InvoiceWorkspace() {
                   value={currency}
                   onChange={(e) => setCurrency(e.target.value)}
                 >
-                  <option>USD</option>
-                  <option>TZS</option>
+                  <option value="TZS">TSH</option>
+                  <option value="USD">USD</option>
                 </select>
               </F>
             </div>
@@ -463,12 +445,6 @@ export function InvoiceWorkspace() {
                     <option key={x}>{x}</option>
                   ))}
                 </select>
-                <input
-                  type="number"
-                  aria-label="Item VAT"
-                  value={i.vat}
-                  onChange={(e) => upd(i.id, "vat", +e.target.value)}
-                />
                 <b>{fmt(i.quantity * i.rate, currency)}</b>
                 <button
                   className="delete"
@@ -489,7 +465,6 @@ export function InvoiceWorkspace() {
                     quantity: 1,
                     rate: 0,
                     per: "Service",
-                    vat: 0,
                   },
                 ])
               }
@@ -497,31 +472,10 @@ export function InvoiceWorkspace() {
               ＋ Add line item
             </button>
             <div className="totals-editor">
-              <label>
-                Tax treatment
-                <select
-                  value={vatMode}
-                  onChange={(e) => setVatMode(e.target.value)}
-                >
-                  <option>Exempt</option>
-                  <option>0%</option>
-                  <option>18%</option>
-                  <option>Custom</option>
-                </select>
-                {vatMode === "Custom" && (
-                  <input
-                    type="number"
-                    value={customVat}
-                    onChange={(e) => setCustomVat(+e.target.value)}
-                  />
-                )}
-              </label>
+              <span />
               <div>
                 <span>
                   Subtotal<b>{fmt(subtotal, currency)}</b>
-                </span>
-                <span>
-                  VAT<b>{fmt(vat, currency)}</b>
                 </span>
                 <strong>
                   Total<b>{fmt(total, currency)}</b>
@@ -618,7 +572,6 @@ export function InvoiceWorkspace() {
                   <th>Qty</th>
                   <th>Rate</th>
                   <th>Per</th>
-                  <th>VAT</th>
                   <th>Amount</th>
                 </tr>
               </thead>
@@ -629,24 +582,16 @@ export function InvoiceWorkspace() {
                     <td>{i.quantity}</td>
                     <td>{i.rate}</td>
                     <td>{i.per}</td>
-                    <td>{i.vat || globalRate}%</td>
                     <td>{fmt(i.quantity * i.rate, currency)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
             <div className="invoice-summary">
-              <div>
-                {vatMode === "Exempt" && (
-                  <strong className="exempt">VAT EXEMPTED</strong>
-                )}
-              </div>
+              <div />
               <div>
                 <span>
                   Subtotal<b>{fmt(subtotal, currency)}</b>
-                </span>
-                <span>
-                  VAT<b>{fmt(vat, currency)}</b>
                 </span>
                 <strong>
                   TOTAL<b>{fmt(total, currency)}</b>
