@@ -1,14 +1,714 @@
 // @ts-nocheck
 "use client";
-import {useEffect,useState} from "react";
-type Rec=Record<string,any>;
-const Field=({label,name,value,type="text",required=false}:{label:string;name:string;value?:any;type?:string;required?:boolean})=><label className="field"><span>{label}</span><input name={name} type={type} defaultValue={value??""} required={required}/></label>;
-function Notice({text}:{text:string}){return text?<div className="auth-success">{text}</div>:null}
+import { useEffect, useState } from "react";
+type Rec = Record<string, any>;
+const Field = ({
+  label,
+  name,
+  value,
+  type = "text",
+  required = false,
+}: {
+  label: string;
+  name: string;
+  value?: any;
+  type?: string;
+  required?: boolean;
+}) => (
+  <label className="field">
+    <span>{label}</span>
+    <input
+      name={name}
+      type={type}
+      defaultValue={value ?? ""}
+      required={required}
+    />
+  </label>
+);
+function Notice({ text }: { text: string }) {
+  return text ? <div className="auth-success">{text}</div> : null;
+}
 
-export function DashboardPanel({onCreate,onInvoices}:{onCreate:()=>void;onInvoices:()=>void}){const[data,setData]=useState<Rec|null>(null);useEffect(()=>{fetch('/api/dashboard').then(r=>r.json()).then(setData)},[]);if(!data)return <div className="content-page">Loading financial overview…</div>;const t=data.totals||{};const money=(n:number)=>`USD ${Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2})}`;return <div className="content-page"><div className="page-actions"><div><h2>Financial overview</h2><p>Live totals from the invoice database</p></div><button className="primary" onClick={onCreate}>＋ Create invoice</button></div><div className="stat-grid">{[['Total invoiced',money(t.total_invoiced),'↗'],['Paid',money(t.paid),'✓'],['Outstanding',money(t.outstanding),'◷'],['Overdue',money(t.overdue),'!']].map((x,i)=><div className="stat" key={x[0]}><span className={`stat-icon s${i}`}>{x[2]}</span><label>{x[0]}</label><h3>{x[1]}</h3><small>{t.invoice_count||0} total invoices</small></div>)}</div><div className="dashboard-grid"><div className="card chart"><div className="card-title"><h2>Monthly invoicing</h2></div>{data.monthly?.length?<div className="bars">{data.monthly.map((m:Rec)=><div key={m.month+m.year}><span style={{height:`${Math.max(8,Math.min(100,m.total/Math.max(...data.monthly.map((z:Rec)=>z.total))*100))}%`}}/><label>{m.month}</label></div>)}</div>:<div className="dashboard-empty">No invoicing activity yet. Create your first invoice to populate this chart.</div>}</div><div className="card"><div className="card-title"><h2>Recent invoices</h2><button className="text-btn" onClick={onInvoices}>View all</button></div>{data.recent?.length?<div className="mini-rows">{data.recent.map((i:Rec)=><div key={i.id}><span className="doc-icon">▤</span><div><b>{i.invoice_number}</b><small>{i.customer}</small></div><strong>{i.currency} {Number(i.total).toLocaleString()}</strong><em className={String(i.status).toLowerCase()}>{i.status}</em></div>)}</div>:<div className="dashboard-empty">No invoices saved in the database.</div>}</div></div></div>}
+export function DashboardPanel({
+  onCreate,
+  onInvoices,
+}: {
+  onCreate: () => void;
+  onInvoices: () => void;
+}) {
+  const [data, setData] = useState<Rec | null>(null);
+  useEffect(() => {
+    fetch("/api/dashboard")
+      .then((r) => r.json())
+      .then(setData);
+  }, []);
+  if (!data)
+    return <div className="content-page">Loading financial overview…</div>;
+  const totals = Array.isArray(data.totals) ? data.totals : [];
+  const value = (key: string) =>
+    totals
+      .map(
+        (t: Rec) =>
+          `${t.currency} ${Number(t[key] || 0).toLocaleString("en-US", { minimumFractionDigits: t.currency === "USD" ? 2 : 0, maximumFractionDigits: t.currency === "USD" ? 2 : 0 })}`,
+      )
+      .join(" · ") || "No data";
+  const count = totals.reduce(
+    (sum: number, t: Rec) => sum + Number(t.invoice_count || 0),
+    0,
+  );
+  return (
+    <div className="content-page">
+      <div className="page-actions">
+        <div>
+          <h2>Financial overview</h2>
+          <p>Live totals from the invoice database</p>
+        </div>
+        <button className="primary" onClick={onCreate}>
+          ＋ Create invoice
+        </button>
+      </div>
+      <div className="stat-grid">
+        {[
+          ["Total invoiced", value("total_invoiced"), "↗"],
+          ["Paid", value("paid"), "✓"],
+          ["Outstanding", value("outstanding"), "◷"],
+          ["Overdue", value("overdue"), "!"],
+        ].map((x, i) => (
+          <div className="stat" key={x[0]}>
+            <span className={`stat-icon s${i}`}>{x[2]}</span>
+            <label>{x[0]}</label>
+            <h3>{x[1]}</h3>
+            <small>{count} total invoices</small>
+          </div>
+        ))}
+      </div>
+      <div className="dashboard-grid">
+        <div className="card chart">
+          <div className="card-title">
+            <h2>Monthly invoicing</h2>
+          </div>
+          {data.monthly?.length ? (
+            <div className="bars">
+              {data.monthly.map((m: Rec) => (
+                <div key={m.month + m.year}>
+                  <span
+                    style={{
+                      height: `${Math.max(8, Math.min(100, (m.total / Math.max(...data.monthly.map((z: Rec) => z.total))) * 100))}%`,
+                    }}
+                  />
+                  <label>{m.month}</label>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="dashboard-empty">
+              No invoicing activity yet. Create your first invoice to populate
+              this chart.
+            </div>
+          )}
+        </div>
+        <div className="card">
+          <div className="card-title">
+            <h2>Recent invoices</h2>
+            <button className="text-btn" onClick={onInvoices}>
+              View all
+            </button>
+          </div>
+          {data.recent?.length ? (
+            <div className="mini-rows">
+              {data.recent.map((i: Rec) => (
+                <div key={i.id}>
+                  <span className="doc-icon">▤</span>
+                  <div>
+                    <b>{i.invoice_number}</b>
+                    <small>{i.customer}</small>
+                  </div>
+                  <strong>
+                    {i.currency} {Number(i.total).toLocaleString()}
+                  </strong>
+                  <em className={String(i.status).toLowerCase()}>{i.status}</em>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="dashboard-empty">
+              No invoices saved in the database.
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
-export function SettingsPanel(){const[company,setCompany]=useState<Rec|null>(null),[banks,setBanks]=useState<Rec[]>([]),[editing,setEditing]=useState<Rec|null>(null),[message,setMessage]=useState("");const load=()=>{fetch('/api/settings').then(r=>r.json()).then(setCompany);fetch('/api/banks').then(r=>r.json()).then(d=>setBanks(Array.isArray(d)?d:[]))};useEffect(load,[]);const saveCompany=async(e:React.FormEvent<HTMLFormElement>)=>{e.preventDefault();const b=Object.fromEntries(new FormData(e.currentTarget));const r=await fetch('/api/settings',{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify(b)});if(r.ok){setCompany(await r.json());setMessage('Company settings saved')}};const saveBank=async(e:React.FormEvent<HTMLFormElement>)=>{e.preventDefault();const b:any=Object.fromEntries(new FormData(e.currentTarget));b.id=editing?.id;b.is_default=b.is_default==='on';const r=await fetch('/api/banks',{method:editing?.id?'PUT':'POST',headers:{'content-type':'application/json'},body:JSON.stringify(b)});if(r.ok){setEditing(null);setMessage('Bank account saved');load()}};const del=async(id:number)=>{if(!confirm('Delete this bank account?'))return;await fetch(`/api/banks?id=${id}`,{method:'DELETE'});load()};if(!company)return <div className="content-page">Loading settings…</div>;return <div className="content-page narrow"><div className="page-actions"><div><h2>Company settings</h2><p>These details appear on every invoice.</p></div></div><Notice text={message}/><form className="card" onSubmit={saveCompany}><div className="card-title"><div><span>◇</span><h2>Company information</h2></div><button className="primary create-user">Save changes</button></div><div className="form-grid two"><Field label="Company name" name="name" value={company.name} required/><Field label="Postal address" name="postal_address" value={company.postal_address}/><Field label="Physical location" name="physical_location" value={company.physical_location}/><Field label="Country" name="country" value={company.country}/><Field label="TIN" name="tin" value={company.tin}/><Field label="VRN" name="vrn" value={company.vrn}/><Field label="Email" name="email" value={company.email} type="email"/><Field label="Phone" name="phone" value={company.phone}/><Field label="Website" name="website" value={company.website}/><Field label="Number format" name="invoice_number_format" value={company.invoice_number_format}/></div><label className="field settings-declaration"><span>Declaration</span><textarea name="declaration" defaultValue={company.declaration}/></label></form><div className="card banks-card"><div className="card-title"><div><span>◇</span><h2>Bank accounts</h2></div><button className="text-btn" onClick={()=>setEditing({currency:'USD'})}>＋ Add bank account</button></div>{banks.length===0&&<p className="empty-state">No bank accounts yet.</p>}{banks.map(b=><div className="bank-setting" key={b.id}><div><b>{b.bank_name}</b><span>{b.account_name} · {b.currency} · {b.account_number}</span><small>{b.branch} {b.swift_code&&`· SWIFT ${b.swift_code}`}</small></div>{b.is_default&&<em>Default</em>}<button onClick={()=>setEditing(b)}>Edit</button><button className="danger-btn" onClick={()=>del(b.id)}>Delete</button></div>)}</div>{editing&&<form className="card bank-editor" onSubmit={saveBank}><div className="card-title"><div><span>◇</span><h2>{editing.id?'Edit':'Add'} bank account</h2></div><button type="button" className="delete" onClick={()=>setEditing(null)}>×</button></div><div className="form-grid two"><Field label="Bank name" name="bank_name" value={editing.bank_name} required/><Field label="Account name" name="account_name" value={editing.account_name} required/><Field label="Account number" name="account_number" value={editing.account_number} required/><label className="field"><span>Currency</span><select name="currency" defaultValue={editing.currency||'USD'}><option>USD</option><option>TZS</option></select></label><Field label="Branch" name="branch" value={editing.branch}/><Field label="SWIFT code" name="swift_code" value={editing.swift_code}/><Field label="Instructions" name="instructions" value={editing.instructions}/><label className="check-line"><input type="checkbox" name="is_default" defaultChecked={editing.is_default}/> Make default payment account</label></div><button className="primary create-user">Save bank account</button></form>}</div>}
+export function SettingsPanel() {
+  const [company, setCompany] = useState<Rec | null>(null),
+    [banks, setBanks] = useState<Rec[]>([]),
+    [editing, setEditing] = useState<Rec | null>(null),
+    [message, setMessage] = useState("");
+  const load = () => {
+    fetch("/api/settings")
+      .then((r) => r.json())
+      .then(setCompany);
+    fetch("/api/banks")
+      .then((r) => r.json())
+      .then((d) => setBanks(Array.isArray(d) ? d : []));
+  };
+  useEffect(() => {
+    void load();
+  }, []);
+  const saveCompany = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const b = Object.fromEntries(new FormData(e.currentTarget));
+    const r = await fetch("/api/settings", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(b),
+    });
+    if (r.ok) {
+      setCompany(await r.json());
+      setMessage("Company settings saved");
+    }
+  };
+  const saveBank = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const b: any = Object.fromEntries(new FormData(e.currentTarget));
+    b.id = editing?.id;
+    b.is_default = b.is_default === "on";
+    const r = await fetch("/api/banks", {
+      method: editing?.id ? "PUT" : "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(b),
+    });
+    if (r.ok) {
+      setEditing(null);
+      setMessage("Bank account saved");
+      load();
+    }
+  };
+  const del = async (id: number) => {
+    if (!confirm("Delete this bank account?")) return;
+    await fetch(`/api/banks?id=${id}`, { method: "DELETE" });
+    load();
+  };
+  if (!company) return <div className="content-page">Loading settings…</div>;
+  return (
+    <div className="content-page narrow">
+      <div className="page-actions">
+        <div>
+          <h2>Company settings</h2>
+          <p>These details appear on every invoice.</p>
+        </div>
+      </div>
+      <Notice text={message} />
+      <form className="card" onSubmit={saveCompany}>
+        <div className="card-title">
+          <div>
+            <span>◇</span>
+            <h2>Company information</h2>
+          </div>
+          <button className="primary create-user">Save changes</button>
+        </div>
+        <div className="form-grid two">
+          <Field
+            label="Company name"
+            name="name"
+            value={company.name}
+            required
+          />
+          <Field
+            label="Postal address"
+            name="postal_address"
+            value={company.postal_address}
+          />
+          <Field
+            label="Physical location"
+            name="physical_location"
+            value={company.physical_location}
+          />
+          <Field label="Country" name="country" value={company.country} />
+          <Field label="TIN" name="tin" value={company.tin} />
+          <Field label="VRN" name="vrn" value={company.vrn} />
+          <Field
+            label="Email"
+            name="email"
+            value={company.email}
+            type="email"
+          />
+          <Field label="Phone" name="phone" value={company.phone} />
+          <Field label="Website" name="website" value={company.website} />
+          <Field
+            label="Number format"
+            name="invoice_number_format"
+            value={company.invoice_number_format}
+          />
+        </div>
+        <label className="field settings-declaration">
+          <span>Declaration</span>
+          <textarea name="declaration" defaultValue={company.declaration} />
+        </label>
+      </form>
+      <div className="card banks-card">
+        <div className="card-title">
+          <div>
+            <span>◇</span>
+            <h2>Bank accounts</h2>
+          </div>
+          <button
+            className="text-btn"
+            onClick={() => setEditing({ currency: "USD" })}
+          >
+            ＋ Add bank account
+          </button>
+        </div>
+        {banks.length === 0 && (
+          <p className="empty-state">No bank accounts yet.</p>
+        )}
+        {banks.map((b) => (
+          <div className="bank-setting" key={b.id}>
+            <div>
+              <b>{b.bank_name}</b>
+              <span>
+                {b.account_name} · {b.currency} · {b.account_number}
+              </span>
+              <small>
+                {b.branch} {b.swift_code && `· SWIFT ${b.swift_code}`}
+              </small>
+            </div>
+            {b.is_default && <em>Default</em>}
+            <button onClick={() => setEditing(b)}>Edit</button>
+            <button className="danger-btn" onClick={() => del(b.id)}>
+              Delete
+            </button>
+          </div>
+        ))}
+      </div>
+      {editing && (
+        <form className="card bank-editor" onSubmit={saveBank}>
+          <div className="card-title">
+            <div>
+              <span>◇</span>
+              <h2>{editing.id ? "Edit" : "Add"} bank account</h2>
+            </div>
+            <button
+              type="button"
+              className="delete"
+              onClick={() => setEditing(null)}
+            >
+              ×
+            </button>
+          </div>
+          <div className="form-grid two">
+            <Field
+              label="Bank name"
+              name="bank_name"
+              value={editing.bank_name}
+              required
+            />
+            <Field
+              label="Account name"
+              name="account_name"
+              value={editing.account_name}
+              required
+            />
+            <Field
+              label="Account number"
+              name="account_number"
+              value={editing.account_number}
+              required
+            />
+            <label className="field">
+              <span>Currency</span>
+              <select name="currency" defaultValue={editing.currency || "USD"}>
+                <option>USD</option>
+                <option>TZS</option>
+              </select>
+            </label>
+            <Field label="Branch" name="branch" value={editing.branch} />
+            <Field
+              label="SWIFT code"
+              name="swift_code"
+              value={editing.swift_code}
+            />
+            <Field
+              label="Instructions"
+              name="instructions"
+              value={editing.instructions}
+            />
+            <label className="check-line">
+              <input
+                type="checkbox"
+                name="is_default"
+                defaultChecked={editing.is_default}
+              />{" "}
+              Make default payment account
+            </label>
+          </div>
+          <button className="primary create-user">Save bank account</button>
+        </form>
+      )}
+    </div>
+  );
+}
 
-export function CustomersPanel(){const[rows,setRows]=useState<Rec[]>([]),[edit,setEdit]=useState<Rec|null>(null),[message,setMessage]=useState('');const load=()=>fetch('/api/customers').then(r=>r.json()).then(d=>setRows(Array.isArray(d)?d:[]));useEffect(load,[]);const save=async(e:React.FormEvent<HTMLFormElement>)=>{e.preventDefault();const b:any=Object.fromEntries(new FormData(e.currentTarget));b.id=edit?.id;const r=await fetch('/api/customers',{method:edit?.id?'PUT':'POST',headers:{'content-type':'application/json'},body:JSON.stringify(b)});if(r.ok){setEdit(null);setMessage('Customer saved');load()}};const del=async(id:number)=>{if(!confirm('Delete this customer?'))return;const r=await fetch(`/api/customers?id=${id}`,{method:'DELETE'});if(!r.ok)alert((await r.json()).error);load()};return <div className="content-page"><div className="page-actions"><div><h2>Customers</h2><p>Saved billing contacts for faster invoicing.</p></div><button className="primary" onClick={()=>setEdit({country:'Tanzania'})}>＋ Add customer</button></div><Notice text={message}/>{edit&&<form className="card user-form" onSubmit={save}><div className="card-title"><div><span>♙</span><h2>{edit.id?'Edit':'Add'} customer</h2></div><button type="button" className="delete" onClick={()=>setEdit(null)}>×</button></div><div className="form-grid three"><Field label="Company name" name="name" value={edit.name} required/><Field label="Postal address" name="postal_address" value={edit.postal_address}/><Field label="Physical address" name="physical_address" value={edit.physical_address}/><Field label="Country" name="country" value={edit.country}/><Field label="TIN" name="tin" value={edit.tin}/><Field label="VRN" name="vrn" value={edit.vrn}/><Field label="Email" name="email" value={edit.email} type="email"/><Field label="Phone" name="phone" value={edit.phone}/></div><button className="primary create-user">Save customer</button></form>}<div className="customer-grid">{rows.map(c=><div className="card customer" key={c.id}><div className="customer-avatar">{c.name.split(' ').map((x:string)=>x[0]).slice(0,2).join('')}</div><h3>{c.name}</h3><p>{c.physical_address||c.postal_address||'No address'}<br/>{c.email||'No email'}</p><div className="row-actions"><button onClick={()=>setEdit(c)}>Edit</button><button onClick={()=>del(c.id)}>Delete</button></div></div>)}</div></div>}
+export function CustomersPanel() {
+  const [rows, setRows] = useState<Rec[]>([]),
+    [edit, setEdit] = useState<Rec | null>(null),
+    [message, setMessage] = useState("");
+  const load = () =>
+    fetch("/api/customers")
+      .then((r) => r.json())
+      .then((d) => setRows(Array.isArray(d) ? d : []));
+  useEffect(() => {
+    void load();
+  }, []);
+  const save = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const b: any = Object.fromEntries(new FormData(e.currentTarget));
+    b.id = edit?.id;
+    const r = await fetch("/api/customers", {
+      method: edit?.id ? "PUT" : "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(b),
+    });
+    if (r.ok) {
+      setEdit(null);
+      setMessage("Customer saved");
+      load();
+    }
+  };
+  const del = async (id: number) => {
+    if (!confirm("Delete this customer?")) return;
+    const r = await fetch(`/api/customers?id=${id}`, { method: "DELETE" });
+    if (!r.ok) alert((await r.json()).error);
+    load();
+  };
+  return (
+    <div className="content-page">
+      <div className="page-actions">
+        <div>
+          <h2>Customers</h2>
+          <p>Saved billing contacts for faster invoicing.</p>
+        </div>
+        <button
+          className="primary"
+          onClick={() => setEdit({ country: "Tanzania" })}
+        >
+          ＋ Add customer
+        </button>
+      </div>
+      <Notice text={message} />
+      {edit && (
+        <form className="card user-form" onSubmit={save}>
+          <div className="card-title">
+            <div>
+              <span>♙</span>
+              <h2>{edit.id ? "Edit" : "Add"} customer</h2>
+            </div>
+            <button
+              type="button"
+              className="delete"
+              onClick={() => setEdit(null)}
+            >
+              ×
+            </button>
+          </div>
+          <div className="form-grid three">
+            <Field
+              label="Company name"
+              name="name"
+              value={edit.name}
+              required
+            />
+            <Field
+              label="Postal address"
+              name="postal_address"
+              value={edit.postal_address}
+            />
+            <Field
+              label="Physical address"
+              name="physical_address"
+              value={edit.physical_address}
+            />
+            <Field label="Country" name="country" value={edit.country} />
+            <Field label="TIN" name="tin" value={edit.tin} />
+            <Field label="VRN" name="vrn" value={edit.vrn} />
+            <Field label="Email" name="email" value={edit.email} type="email" />
+            <Field label="Phone" name="phone" value={edit.phone} />
+          </div>
+          <button className="primary create-user">Save customer</button>
+        </form>
+      )}
+      <div className="customer-grid">
+        {rows.map((c) => (
+          <div className="card customer" key={c.id}>
+            <div className="customer-avatar">
+              {c.name
+                .split(" ")
+                .map((x: string) => x[0])
+                .slice(0, 2)
+                .join("")}
+            </div>
+            <h3>{c.name}</h3>
+            <p>
+              {c.physical_address || c.postal_address || "No address"}
+              <br />
+              {c.email || "No email"}
+            </p>
+            <div className="row-actions">
+              <button onClick={() => setEdit(c)}>Edit</button>
+              <button onClick={() => del(c.id)}>Delete</button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
-export function InvoicesPanel(){const[rows,setRows]=useState<Rec[]>([]),[query,setQuery]=useState('');const load=()=>fetch('/api/invoices').then(r=>r.json()).then(d=>setRows(Array.isArray(d)?d:[]));useEffect(load,[]);const status=async(id:number,s:string)=>{await fetch('/api/invoices',{method:'PUT',headers:{'content-type':'application/json'},body:JSON.stringify({id,status:s})});load()};const duplicate=async(id:number)=>{await fetch('/api/invoices',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({id})});load()};const del=async(id:number)=>{if(!confirm('Permanently delete this invoice?'))return;await fetch(`/api/invoices?id=${id}`,{method:'DELETE'});load()};const shown=rows.filter(r=>(r.invoice_number+' '+r.customer).toLowerCase().includes(query.toLowerCase()));return <div className="content-page"><div className="page-actions"><div><h2>All invoices</h2><p>Database-backed invoice history and status management.</p></div></div><div className="filters"><label className="search">⌕ <input placeholder="Search invoice or customer" value={query} onChange={e=>setQuery(e.target.value)}/></label></div><div className="data-card"><div className="invoice-manage-head"><span>Invoice</span><span>Customer</span><span>Date</span><span>Amount</span><span>Status</span><span>Actions</span></div>{shown.map(i=><div className="invoice-manage-row" key={i.id}><b>{i.invoice_number}</b><span>{i.customer}</span><span>{new Date(i.invoice_date).toLocaleDateString()}</span><b>{i.currency} {Number(i.total).toLocaleString()}</b><select value={i.status} onChange={e=>status(i.id,e.target.value)}>{['Draft','Sent','Pending','Paid','Overdue','Cancelled'].map(s=><option key={s}>{s}</option>)}</select><div><button onClick={()=>duplicate(i.id)}>Duplicate</button><button className="danger-btn" onClick={()=>del(i.id)}>Delete</button></div></div>)}</div></div>}
+export function InvoicesPanel({ onEdit }: { onEdit: () => void }) {
+  const [rows, setRows] = useState<Rec[]>([]),
+    [query, setQuery] = useState("");
+  const load = () =>
+    fetch("/api/invoices")
+      .then((r) => r.json())
+      .then((d) => setRows(Array.isArray(d) ? d : []));
+  useEffect(() => {
+    void load();
+  }, []);
+  const status = async (id: number, s: string) => {
+    await fetch("/api/invoices", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id, status: s }),
+    });
+    load();
+  };
+  const duplicate = async (id: number) => {
+    await fetch("/api/invoices", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    load();
+  };
+  const editInvoice = async (id: number) => {
+    const r = await fetch("/api/invoices", {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ id, status: "Draft" }),
+    });
+    if (r.ok) onEdit();
+  };
+  const del = async (id: number) => {
+    if (!confirm("Permanently delete this invoice?")) return;
+    await fetch(`/api/invoices?id=${id}`, { method: "DELETE" });
+    load();
+  };
+  const shown = rows.filter((r) =>
+    (r.invoice_number + " " + r.customer)
+      .toLowerCase()
+      .includes(query.toLowerCase()),
+  );
+  return (
+    <div className="content-page">
+      <div className="page-actions">
+        <div>
+          <h2>All invoices</h2>
+          <p>Database-backed invoice history and status management.</p>
+        </div>
+      </div>
+      <div className="filters">
+        <label className="search">
+          ⌕{" "}
+          <input
+            placeholder="Search invoice or customer"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </label>
+      </div>
+      <div className="data-card">
+        <div className="invoice-manage-head">
+          <span>Invoice</span>
+          <span>Customer</span>
+          <span>Date</span>
+          <span>Amount</span>
+          <span>Status</span>
+          <span>Actions</span>
+        </div>
+        {shown.map((i) => (
+          <div className="invoice-manage-row" key={i.id}>
+            <b>{i.invoice_number}</b>
+            <span>{i.customer}</span>
+            <span>{new Date(i.invoice_date).toLocaleDateString()}</span>
+            <b>
+              {i.currency} {Number(i.total).toLocaleString()}
+            </b>
+            <select
+              value={i.status}
+              onChange={(e) => status(i.id, e.target.value)}
+            >
+              {["Draft", "Sent", "Pending", "Paid", "Overdue", "Cancelled"].map(
+                (s) => (
+                  <option key={s}>{s}</option>
+                ),
+              )}
+            </select>
+            <div>
+              <button onClick={() => editInvoice(i.id)}>Edit</button>
+              <button onClick={() => duplicate(i.id)}>Duplicate</button>
+              <button className="danger-btn" onClick={() => del(i.id)}>
+                Delete
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function UsersPanel() {
+  const [rows, setRows] = useState<Rec[]>([]),
+    [edit, setEdit] = useState<Rec | null>(null),
+    [error, setError] = useState("");
+  const load = () => {
+    fetch("/api/users")
+      .then((r) => r.json())
+      .then((d) => setRows(Array.isArray(d) ? d : []));
+  };
+  useEffect(() => {
+    load();
+  }, []);
+  const save = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError("");
+    const b: any = Object.fromEntries(new FormData(e.currentTarget));
+    b.id = edit?.id;
+    b.is_active = b.is_active === "on";
+    const r = await fetch("/api/users", {
+      method: edit?.id ? "PUT" : "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(b),
+    });
+    const d = await r.json();
+    if (!r.ok) {
+      setError(d.error);
+      return;
+    }
+    setEdit(null);
+    load();
+  };
+  return (
+    <div className="content-page">
+      <div className="page-actions">
+        <div>
+          <h2>User management</h2>
+          <p>
+            Create accounts, assign roles, disable access, and reset passwords.
+          </p>
+        </div>
+        <button
+          className="primary"
+          onClick={() => setEdit({ role: "staff", is_active: true })}
+        >
+          ＋ Add user
+        </button>
+      </div>
+      {edit && (
+        <form className="card user-form" onSubmit={save}>
+          <div className="card-title">
+            <div>
+              <span>♟</span>
+              <h2>{edit.id ? "Edit" : "Create"} user</h2>
+            </div>
+            <button
+              type="button"
+              className="delete"
+              onClick={() => setEdit(null)}
+            >
+              ×
+            </button>
+          </div>
+          <div className="form-grid three">
+            <Field
+              label="Full name"
+              name={edit.id ? "full_name" : "fullName"}
+              value={edit.full_name}
+              required
+            />
+            <Field
+              label="Email"
+              name="email"
+              value={edit.email}
+              type="email"
+              required
+            />
+            <label className="field">
+              <span>Role</span>
+              <select name="role" defaultValue={edit.role}>
+                <option value="admin">Administrator</option>
+                <option value="manager">Manager</option>
+                <option value="staff">Staff</option>
+                <option value="viewer">Viewer</option>
+              </select>
+            </label>
+            <Field
+              label={edit.id ? "New password (optional)" : "Temporary password"}
+              name="password"
+              type="password"
+              required={!edit.id}
+            />
+            <label className="check-line">
+              <input
+                type="checkbox"
+                name="is_active"
+                defaultChecked={edit.is_active !== false}
+              />{" "}
+              Active account
+            </label>
+          </div>
+          {error && <div className="auth-error">{error}</div>}
+          <button className="primary create-user">Save user</button>
+        </form>
+      )}
+      <div className="data-card">
+        <div className="user-head">
+          <span>User</span>
+          <span>Role</span>
+          <span>Status</span>
+          <span>Last sign in</span>
+          <span />
+        </div>
+        {rows.map((u) => (
+          <div className="user-row" key={u.id}>
+            <div>
+              <span className="customer-avatar">
+                {u.full_name
+                  .split(" ")
+                  .map((x: string) => x[0])
+                  .slice(0, 2)
+                  .join("")}
+              </span>
+              <p>
+                <b>{u.full_name}</b>
+                <small>{u.email}</small>
+              </p>
+            </div>
+            <em>{u.role}</em>
+            <span className={u.is_active ? "user-active" : "user-disabled"}>
+              {u.is_active ? "Active" : "Disabled"}
+            </span>
+            <span>
+              {u.last_login_at
+                ? new Date(u.last_login_at).toLocaleDateString()
+                : "Never"}
+            </span>
+            <button onClick={() => setEdit(u)}>Edit</button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}

@@ -1,13 +1,24 @@
 import postgres from "postgres";
 
+const globalDb = globalThis as unknown as {
+  bisaaniSql?: ReturnType<typeof postgres>;
+  bisaaniReady?: Promise<void>;
+};
 export function db() {
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_URL is not configured");
-  return postgres(url, { max: 1, idle_timeout: 2, connect_timeout: 10 });
+  globalDb.bisaaniSql ??= postgres(url, {
+    max: 10,
+    idle_timeout: 20,
+    connect_timeout: 10,
+    prepare: true,
+  });
+  return globalDb.bisaaniSql;
 }
 
 export function ensureDatabase() {
-  return initialize();
+  globalDb.bisaaniReady ??= initialize();
+  return globalDb.bisaaniReady;
 }
 
 async function initialize() {
@@ -58,11 +69,39 @@ async function initialize() {
     id BIGSERIAL PRIMARY KEY, user_id BIGINT REFERENCES users(id), action TEXT NOT NULL,
     entity_type TEXT, entity_id TEXT, details JSONB, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )`);
-  await sql.unsafe(`CREATE INDEX IF NOT EXISTS idx_invoices_customer_date ON invoices(customer_id, invoice_date DESC)`);
-  await sql.unsafe(`CREATE INDEX IF NOT EXISTS idx_invoices_status_date ON invoices(status, invoice_date DESC)`);
-  await sql.unsafe(`CREATE INDEX IF NOT EXISTS idx_invoice_items_invoice_position ON invoice_items(invoice_id, position)`);
-  await sql.unsafe(`CREATE INDEX IF NOT EXISTS idx_sessions_expiry ON user_sessions(expires_at)`);
-  await sql.unsafe(`CREATE INDEX IF NOT EXISTS idx_audit_user_date ON audit_logs(user_id, created_at DESC)`);
+  await sql.unsafe(
+    `ALTER TABLE invoices ADD COLUMN IF NOT EXISTS created_by BIGINT REFERENCES users(id)`,
+  );
+  await sql.unsafe(
+    `ALTER TABLE invoices ADD COLUMN IF NOT EXISTS updated_by BIGINT REFERENCES users(id)`,
+  );
+  await sql.unsafe(
+    `ALTER TABLE invoices ADD COLUMN IF NOT EXISTS custom_vat_rate NUMERIC(7,3) NOT NULL DEFAULT 0`,
+  );
+  await sql.unsafe(`CREATE TABLE IF NOT EXISTS login_attempts (
+    id BIGSERIAL PRIMARY KEY, email TEXT NOT NULL, attempted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`);
+  await sql.unsafe(
+    `CREATE INDEX IF NOT EXISTS idx_invoices_customer_date ON invoices(customer_id, invoice_date DESC)`,
+  );
+  await sql.unsafe(
+    `CREATE INDEX IF NOT EXISTS idx_invoices_status_date ON invoices(status, invoice_date DESC)`,
+  );
+  await sql.unsafe(
+    `CREATE INDEX IF NOT EXISTS idx_invoice_items_invoice_position ON invoice_items(invoice_id, position)`,
+  );
+  await sql.unsafe(
+    `CREATE INDEX IF NOT EXISTS idx_sessions_expiry ON user_sessions(expires_at)`,
+  );
+  await sql.unsafe(
+    `CREATE INDEX IF NOT EXISTS idx_audit_user_date ON audit_logs(user_id, created_at DESC)`,
+  );
+  await sql.unsafe(
+    `CREATE INDEX IF NOT EXISTS idx_invoices_creator_status ON invoices(created_by,status,updated_at DESC)`,
+  );
+  await sql.unsafe(
+    `CREATE INDEX IF NOT EXISTS idx_login_attempts_email_date ON login_attempts(email,attempted_at DESC)`,
+  );
   await sql`INSERT INTO companies (name, postal_address, physical_location, country, tin, vrn, email, phone, website, declaration)
     SELECT 'BISAANI LOGISTICS COMPANY LIMITED', 'P.O. Box 36004', 'Dar es Salaam', 'Tanzania', '152-975-732', '40-044748-E',
     'info@bisaanilogistics.co.tz', '+255 754 000 440', 'bisaanilogistics.co.tz',

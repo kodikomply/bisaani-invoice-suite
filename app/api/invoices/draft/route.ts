@@ -1,51 +1,126 @@
 import { db, ensureDatabase } from "../../../../lib/db";
 import { requireUser } from "../../../../lib/auth";
-
+const validCurrency = (x: string) => ["USD", "TZS"].includes(x);
+const number = (x: unknown) => (Number.isFinite(Number(x)) ? Number(x) : 0);
 export async function GET() {
   try {
-    const auth = await requireUser(); if (auth.response) return auth.response;
+    const a = await requireUser();
+    if (a.response) return a.response;
     await ensureDatabase();
     const sql = db();
-    const rows = await sql`SELECT i.*, c.name AS customer_name, c.postal_address, c.physical_address, c.tin, c.vrn
-      FROM invoices i LEFT JOIN customers c ON c.id = i.customer_id
-      WHERE i.status = 'Draft' ORDER BY i.updated_at DESC LIMIT 1`;
-    if (!rows.length) return Response.json(null);
-    const items = await sql`SELECT id, description, quantity::float8 AS quantity, rate::float8 AS rate,
-      per_unit AS per, vat_rate::float8 AS vat FROM invoice_items WHERE invoice_id = ${rows[0].id} ORDER BY position`;
-    return Response.json({ ...rows[0], items });
-  } catch (error) {
-    return Response.json({ error: error instanceof Error ? error.message : "Database unavailable" }, { status: 503 });
+    const r =
+      await sql`SELECT i.*,c.name customer_name,c.postal_address,c.physical_address,c.country customer_country,c.tin,c.vrn,c.email customer_email,c.phone customer_phone FROM invoices i LEFT JOIN customers c ON c.id=i.customer_id WHERE i.status='Draft' AND i.created_by=${a.user!.id} ORDER BY i.updated_at DESC LIMIT 1`;
+    if (!r.length) return Response.json(null);
+    const items =
+      await sql`SELECT id,description,quantity::float8 quantity,rate::float8 rate,per_unit per,vat_rate::float8 vat FROM invoice_items WHERE invoice_id=${r[0].id} ORDER BY position`;
+    return Response.json({ ...r[0], items });
+  } catch (e) {
+    return Response.json(
+      { error: e instanceof Error ? e.message : "Database unavailable" },
+      { status: 503 },
+    );
   }
 }
-
-export async function PUT(request: Request) {
+export async function PUT(req: Request) {
   try {
-    const auth = await requireUser(["admin", "manager", "staff"]); if (auth.response) return auth.response;
-    const body = await request.json();
+    const a = await requireUser(["admin", "manager", "staff"]);
+    if (a.response) return a.response;
+    const b = await req.json();
+    if (
+      !b.invoiceNo ||
+      !b.date ||
+      !b.customer ||
+      !Array.isArray(b.items) ||
+      !b.items.length ||
+      !validCurrency(b.currency)
+    )
+      return Response.json(
+        {
+          error:
+            "Invoice number, date, customer, currency and at least one item are required",
+        },
+        { status: 400 },
+      );
+    const items = b.items.map((i: any) => ({
+      description: String(i.description || "").trim(),
+      quantity: number(i.quantity),
+      rate: number(i.rate),
+      per: String(i.per || "Unit"),
+      vat: number(i.vat),
+    }));
+    if (items.some((i: any) => !i.description || i.quantity < 0 || i.rate < 0))
+      return Response.json(
+        {
+          error:
+            "Each item requires a description and non-negative quantity/rate",
+        },
+        { status: 400 },
+      );
+    const subtotal = items.reduce(
+      (s: number, i: any) => s + i.quantity * i.rate,
+      0,
+    );
+    const globalRate =
+      b.vatMode === "18%"
+        ? 18
+        : b.vatMode === "Custom"
+          ? Math.max(0, Math.min(100, number(b.customVatRate)))
+          : 0;
+    const vat = items.reduce(
+      (s: number, i: any) =>
+        s + i.quantity * i.rate * ((i.vat || globalRate) / 100),
+      0,
+    );
+    const total = subtotal + vat;
     await ensureDatabase();
     const sql = db();
-    await sql.begin(async tx => {
-      const existingCustomer = body.tin ? await tx`SELECT id FROM customers WHERE tin = ${body.tin} LIMIT 1` : [];
-      const customerRows = existingCustomer.length
-        ? await tx`UPDATE customers SET name=${body.customer}, postal_address=${body.address}, vrn=${body.vrn}, updated_at=NOW() WHERE id=${existingCustomer[0].id} RETURNING id`
-        : await tx`INSERT INTO customers(name, postal_address, country, tin, vrn) VALUES(${body.customer}, ${body.address}, 'Tanzania', ${body.tin || null}, ${body.vrn || null}) RETURNING id`;
-      const company = await tx`SELECT id FROM companies ORDER BY id LIMIT 1`;
-      const saved = await tx`INSERT INTO invoices(company_id, customer_id, invoice_number, invoice_date, due_date, currency, vat_mode, subtotal, vat_total, total, amount_words, status, include_signature, include_stamp)
-        VALUES(${company[0].id}, ${customerRows[0].id}, ${body.invoiceNo}, ${body.date}, ${body.due || null}, ${body.currency}, ${body.vatMode}, ${body.subtotal}, ${body.vat}, ${body.total}, ${body.amountWords}, 'Draft', ${body.includeSig}, ${body.includeStamp})
-        ON CONFLICT(invoice_number) DO UPDATE SET customer_id=EXCLUDED.customer_id, invoice_date=EXCLUDED.invoice_date,
-        due_date=EXCLUDED.due_date, currency=EXCLUDED.currency, vat_mode=EXCLUDED.vat_mode, subtotal=EXCLUDED.subtotal,
-        vat_total=EXCLUDED.vat_total, total=EXCLUDED.total, amount_words=EXCLUDED.amount_words,
-        include_signature=EXCLUDED.include_signature, include_stamp=EXCLUDED.include_stamp, updated_at=NOW() RETURNING id`;
-      await tx`DELETE FROM invoice_items WHERE invoice_id=${saved[0].id}`;
-      for (let position = 0; position < body.items.length; position++) {
-        const item = body.items[position];
-        await tx`INSERT INTO invoice_items(invoice_id, position, description, quantity, rate, per_unit, vat_rate, amount)
-          VALUES(${saved[0].id}, ${position}, ${item.description}, ${item.quantity}, ${item.rate}, ${item.per}, ${item.vat || 0}, ${item.quantity * item.rate})`;
+    let invoiceId = 0;
+    await sql.begin(async (tx) => {
+      let customerId = b.customerId || null;
+      if (customerId) {
+        const own = await tx`SELECT id FROM customers WHERE id=${customerId}`;
+        if (!own.length) customerId = null;
       }
+      if (!customerId) {
+        const existing = b.tin
+          ? await tx`SELECT id FROM customers WHERE tin=${b.tin} LIMIT 1`
+          : [];
+        const c = existing.length
+          ? await tx`UPDATE customers SET name=${b.customer},postal_address=${b.address || null},physical_address=${b.physicalAddress || null},country=${b.customerCountry || "Tanzania"},vrn=${b.vrn || null},email=${b.customerEmail || null},phone=${b.customerPhone || null},updated_at=NOW() WHERE id=${existing[0].id} RETURNING id`
+          : await tx`INSERT INTO customers(name,postal_address,physical_address,country,tin,vrn,email,phone) VALUES(${b.customer},${b.address || null},${b.physicalAddress || null},${b.customerCountry || "Tanzania"},${b.tin || null},${b.vrn || null},${b.customerEmail || null},${b.customerPhone || null}) RETURNING id`;
+        customerId = c[0].id;
+      }
+      const company = await tx`SELECT id FROM companies ORDER BY id LIMIT 1`;
+      const existingDraft = b.id
+        ? await tx`SELECT id FROM invoices WHERE id=${b.id} AND status='Draft' AND created_by=${a.user!.id}`
+        : [];
+      if (!existingDraft.length) {
+        const duplicate =
+          await tx`SELECT id FROM invoices WHERE invoice_number=${b.invoiceNo}`;
+        if (duplicate.length) throw new Error("DUPLICATE_INVOICE_NUMBER");
+      }
+      const saved = existingDraft.length
+        ? await tx`UPDATE invoices SET customer_id=${customerId},bank_account_id=${b.bankAccountId || null},invoice_number=${b.invoiceNo},invoice_date=${b.date},due_date=${b.due || null},supplier_reference=${b.supplierReference || null},other_reference=${b.otherReference || null},currency=${b.currency},vat_mode=${b.vatMode},custom_vat_rate=${globalRate},subtotal=${subtotal},vat_total=${vat},total=${total},amount_words=${b.amountWords},include_signature=${!!b.includeSig},include_stamp=FALSE,updated_by=${a.user!.id},updated_at=NOW() WHERE id=${existingDraft[0].id} RETURNING id`
+        : await tx`INSERT INTO invoices(company_id,customer_id,bank_account_id,invoice_number,invoice_date,due_date,supplier_reference,other_reference,currency,vat_mode,custom_vat_rate,subtotal,vat_total,total,amount_words,status,include_signature,include_stamp,created_by,updated_by) VALUES(${company[0].id},${customerId},${b.bankAccountId || null},${b.invoiceNo},${b.date},${b.due || null},${b.supplierReference || null},${b.otherReference || null},${b.currency},${b.vatMode},${globalRate},${subtotal},${vat},${total},${b.amountWords},'Draft',${!!b.includeSig},FALSE,${a.user!.id},${a.user!.id}) RETURNING id`;
+      invoiceId = Number(saved[0].id);
+      await tx`DELETE FROM invoice_items WHERE invoice_id=${invoiceId}`;
+      for (let p = 0; p < items.length; p++) {
+        const i = items[p];
+        await tx`INSERT INTO invoice_items(invoice_id,position,description,quantity,rate,per_unit,vat_rate,amount) VALUES(${invoiceId},${p},${i.description},${i.quantity},${i.rate},${i.per},${i.vat || globalRate},${i.quantity * i.rate})`;
+      }
+      await tx`INSERT INTO audit_logs(user_id,action,entity_type,entity_id) VALUES(${a.user!.id},'invoice.saved','invoice',${String(invoiceId)})`;
     });
-    return Response.json({ saved: true });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Could not save invoice";
-    return Response.json({ error: message }, { status: message.includes("unique") ? 409 : 500 });
+    return Response.json({ saved: true, id: invoiceId, subtotal, vat, total });
+  } catch (e) {
+    const m = e instanceof Error ? e.message : "Could not save invoice";
+    return Response.json(
+      {
+        error:
+          m === "DUPLICATE_INVOICE_NUMBER"
+            ? "Invoice number already exists"
+            : m,
+      },
+      { status: m === "DUPLICATE_INVOICE_NUMBER" ? 409 : 500 },
+    );
   }
 }
