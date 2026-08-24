@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: bisaani-invoice-suite
+    runtime: node
+    plan: starter
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm run start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: 22.22.0
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: bisaani-invoice-db
+          property: connectionString
+      - key: INITIAL_ADMIN_NAME
+        value: Bisaani Administrator
+      - key: INITIAL_ADMIN_EMAIL
+        sync: false
+      - key: INITIAL_ADMIN_PASSWORD
+        sync: false
+
+databases:
+  - name: bisaani-invoice-db
+    plan: basic-256mb
+    databaseName: bisaani_invoice
+    user: bisaani_invoice

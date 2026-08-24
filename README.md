@@ -22,3 +22,7 @@ On first login, the initial administrator is created from `INITIAL_ADMIN_NAME`, 
 Passwords are hashed with bcrypt. Database sessions store only SHA-256 token hashes, while browsers receive secure HTTP-only cookies. Invoice APIs enforce authentication and role permissions on the server. Configure HTTPS before exposing the system publicly.
 
 For the complete Nginx, systemd, PostgreSQL, HTTPS, firewall, backup, and subdomain checklist, see [DEPLOY.md](./DEPLOY.md).
+
+## Render deployment
+
+The included `render.yaml` pins Node.js 22, provisions PostgreSQL, installs build dependencies, and configures the web service. When configuring a service manually, use `npm ci --include=dev && npm run build` as the build command and `npm run start` as the start command.
