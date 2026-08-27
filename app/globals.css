@@ -356,7 +356,7 @@ main {
 .field > span,
 .totals-editor > label,
 .invoice-sheet label {
-  font-size: calc(9px * var(--invoice-scale, 1.15));
+  font-size: calc(9px * var(--invoice-effective-scale, 1.15));
   font-weight: 800;
   color: #5d6a7e;
   text-transform: uppercase;
@@ -555,6 +555,10 @@ main {
 }
 .invoice-sheet {
   --invoice-scale: 1.15;
+  --invoice-print-scale: 1;
+  --invoice-effective-scale: calc(
+    var(--invoice-scale) * var(--invoice-print-scale)
+  );
   background: #fff;
   aspect-ratio: 210/297;
   min-height: 730px;
@@ -591,7 +595,7 @@ main {
   object-position: left center;
 }
 .company p {
-  font-size: calc(7.5px * var(--invoice-scale));
+  font-size: calc(7.5px * var(--invoice-effective-scale));
   line-height: 1.6;
   margin: 8px 0 0;
   color: #5d6a7a;
@@ -606,7 +610,7 @@ main {
   font-size: 24px;
 }
 .invoice-title span {
-  font-size: calc(9px * var(--invoice-scale));
+  font-size: calc(9px * var(--invoice-effective-scale));
   color: #647080;
 }
 .invoice-meta {
@@ -616,13 +620,13 @@ main {
   padding: 18px 0;
 }
 .invoice-meta h3 {
-  font-size: calc(9px * var(--invoice-scale));
+  font-size: calc(9px * var(--invoice-effective-scale));
   color: #092f69;
   margin: 7px 0 5px;
 }
 .invoice-meta p {
   white-space: pre-line;
-  font-size: calc(7.5px * var(--invoice-scale));
+  font-size: calc(7.5px * var(--invoice-effective-scale));
   line-height: 1.55;
   margin: 0;
   color: #5c6877;
@@ -639,19 +643,19 @@ main {
   gap: 4px;
 }
 .meta-grid b {
-  font-size: calc(8px * var(--invoice-scale));
+  font-size: calc(8px * var(--invoice-effective-scale));
 }
 .invoice-sheet table {
   width: 100%;
   border-collapse: collapse;
-  font-size: calc(7.5px * var(--invoice-scale));
+  font-size: calc(7.5px * var(--invoice-effective-scale));
 }
 .invoice-sheet th {
   background: #082f68;
   color: white;
   text-align: left;
   padding: 8px 7px;
-  font-size: calc(7px * var(--invoice-scale));
+  font-size: calc(7px * var(--invoice-effective-scale));
   text-transform: uppercase;
 }
 .invoice-sheet th:not(:first-child),
@@ -681,7 +685,7 @@ main {
   display: flex;
   justify-content: space-between;
   padding: 5px 7px;
-  font-size: calc(8px * var(--invoice-scale));
+  font-size: calc(8px * var(--invoice-effective-scale));
 }
 .invoice-summary span {
   color: #5f6b79;
@@ -690,7 +694,7 @@ main {
   background: #edf4fd;
   color: #082f68;
   border-top: 1px solid #a9bed9;
-  font-size: calc(10px * var(--invoice-scale));
+  font-size: calc(10px * var(--invoice-effective-scale));
 }
 .exempt {
   display: inline-block;
@@ -708,7 +712,7 @@ main {
   margin: 2px 0 14px;
 }
 .amount-words p {
-  font-size: calc(8.5px * var(--invoice-scale));
+  font-size: calc(8.5px * var(--invoice-effective-scale));
   font-weight: 700;
   color: #092f69;
   margin: 5px 0 0;
@@ -724,12 +728,12 @@ main {
   border-radius: 4px;
 }
 .bank h4 {
-  font-size: calc(8px * var(--invoice-scale));
+  font-size: calc(8px * var(--invoice-effective-scale));
   color: #0a3169;
   margin: 6px 0;
 }
 .bank p {
-  font-size: calc(7px * var(--invoice-scale));
+  font-size: calc(7px * var(--invoice-effective-scale));
   line-height: 1.65;
   margin: 0;
 }
@@ -741,7 +745,7 @@ main {
   text-align: center;
 }
 .sign > p {
-  font-size: calc(7px * var(--invoice-scale));
+  font-size: calc(7px * var(--invoice-effective-scale));
   font-weight: 700;
   margin: 0;
 }
@@ -769,7 +773,7 @@ main {
   z-index: 2;
 }
 .sign > b {
-  font-size: calc(7.5px * var(--invoice-scale));
+  font-size: calc(7.5px * var(--invoice-effective-scale));
   border-top: 1px solid #748398;
   padding: 4px 17px;
 }
@@ -782,7 +786,7 @@ main {
   padding-top: 8px;
 }
 .invoice-sheet footer p {
-  font-size: calc(6.8px * var(--invoice-scale));
+  font-size: calc(6.8px * var(--invoice-effective-scale));
   color: #697482;
   max-width: 68%;
   line-height: 1.45;
@@ -792,7 +796,7 @@ main {
   position: absolute;
   right: 0;
   bottom: 0;
-  font-size: calc(7px * var(--invoice-scale));
+  font-size: calc(7px * var(--invoice-effective-scale));
   color: #0759b5;
   font-weight: 700;
 }
@@ -1328,6 +1332,7 @@ main {
     width: 100% !important;
   }
   .invoice-sheet {
+    --invoice-print-scale: 1.25;
     display: block !important;
     visibility: visible !important;
     width: 190mm;
