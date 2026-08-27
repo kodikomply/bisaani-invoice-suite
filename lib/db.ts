@@ -78,6 +78,9 @@ async function initialize() {
   await sql.unsafe(
     `ALTER TABLE invoices ADD COLUMN IF NOT EXISTS custom_vat_rate NUMERIC(7,3) NOT NULL DEFAULT 0`,
   );
+  await sql.unsafe(
+    `ALTER TABLE invoices ADD COLUMN IF NOT EXISTS font_scale NUMERIC(4,2) NOT NULL DEFAULT 1.15`,
+  );
   await sql.unsafe(`CREATE TABLE IF NOT EXISTS login_attempts (
     id BIGSERIAL PRIMARY KEY, email TEXT NOT NULL, attempted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )`);

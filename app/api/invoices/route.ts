@@ -48,10 +48,10 @@ export async function POST(req: Request) {
   const invoiceNumber = `${source[0].invoice_number}-COPY-${Date.now().toString().slice(-6)}`;
   const rows = await sql`
     INSERT INTO invoices(company_id,customer_id,bank_account_id,invoice_number,invoice_date,due_date,
-      supplier_reference,other_reference,currency,vat_mode,custom_vat_rate,subtotal,vat_total,total,
+      supplier_reference,other_reference,currency,vat_mode,custom_vat_rate,font_scale,subtotal,vat_total,total,
       amount_words,declaration,status,include_signature,include_stamp,created_by,updated_by)
     SELECT company_id,customer_id,bank_account_id,${invoiceNumber},CURRENT_DATE,due_date,
-      supplier_reference,other_reference,currency,vat_mode,custom_vat_rate,subtotal,vat_total,total,
+      supplier_reference,other_reference,currency,vat_mode,custom_vat_rate,font_scale,subtotal,vat_total,total,
       amount_words,declaration,'Draft',include_signature,FALSE,${auth.user!.id},${auth.user!.id}
     FROM invoices WHERE id = ${body.id} RETURNING id
   `;

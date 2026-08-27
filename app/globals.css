@@ -356,7 +356,7 @@ main {
 .field > span,
 .totals-editor > label,
 .invoice-sheet label {
-  font-size: 9px;
+  font-size: calc(9px * var(--invoice-scale, 1.15));
   font-weight: 800;
   color: #5d6a7e;
   text-transform: uppercase;
@@ -523,6 +523,22 @@ main {
   letter-spacing: 1.2px;
   color: #69788d;
 }
+.font-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #69788d;
+  font-size: 9px;
+  font-weight: 700;
+}
+.font-control select {
+  height: 28px;
+  border: 1px solid #dce2e9;
+  border-radius: 6px;
+  background: #fff;
+  padding: 0 8px;
+  font-size: 10px;
+}
 .preview-label button {
   border: 1px solid #dce2e9;
   background: #fff;
@@ -538,6 +554,7 @@ main {
   font-size: 9px;
 }
 .invoice-sheet {
+  --invoice-scale: 1.15;
   background: #fff;
   aspect-ratio: 210/297;
   min-height: 730px;
@@ -574,7 +591,7 @@ main {
   object-position: left center;
 }
 .company p {
-  font-size: 7.5px;
+  font-size: calc(7.5px * var(--invoice-scale));
   line-height: 1.6;
   margin: 8px 0 0;
   color: #5d6a7a;
@@ -589,7 +606,7 @@ main {
   font-size: 24px;
 }
 .invoice-title span {
-  font-size: 9px;
+  font-size: calc(9px * var(--invoice-scale));
   color: #647080;
 }
 .invoice-meta {
@@ -599,13 +616,13 @@ main {
   padding: 18px 0;
 }
 .invoice-meta h3 {
-  font-size: 9px;
+  font-size: calc(9px * var(--invoice-scale));
   color: #092f69;
   margin: 7px 0 5px;
 }
 .invoice-meta p {
   white-space: pre-line;
-  font-size: 7.5px;
+  font-size: calc(7.5px * var(--invoice-scale));
   line-height: 1.55;
   margin: 0;
   color: #5c6877;
@@ -622,19 +639,19 @@ main {
   gap: 4px;
 }
 .meta-grid b {
-  font-size: 8px;
+  font-size: calc(8px * var(--invoice-scale));
 }
 .invoice-sheet table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 7.5px;
+  font-size: calc(7.5px * var(--invoice-scale));
 }
 .invoice-sheet th {
   background: #082f68;
   color: white;
   text-align: left;
   padding: 8px 7px;
-  font-size: 7px;
+  font-size: calc(7px * var(--invoice-scale));
   text-transform: uppercase;
 }
 .invoice-sheet th:not(:first-child),
@@ -664,7 +681,7 @@ main {
   display: flex;
   justify-content: space-between;
   padding: 5px 7px;
-  font-size: 8px;
+  font-size: calc(8px * var(--invoice-scale));
 }
 .invoice-summary span {
   color: #5f6b79;
@@ -673,7 +690,7 @@ main {
   background: #edf4fd;
   color: #082f68;
   border-top: 1px solid #a9bed9;
-  font-size: 10px;
+  font-size: calc(10px * var(--invoice-scale));
 }
 .exempt {
   display: inline-block;
@@ -691,7 +708,7 @@ main {
   margin: 2px 0 14px;
 }
 .amount-words p {
-  font-size: 8.5px;
+  font-size: calc(8.5px * var(--invoice-scale));
   font-weight: 700;
   color: #092f69;
   margin: 5px 0 0;
@@ -707,12 +724,12 @@ main {
   border-radius: 4px;
 }
 .bank h4 {
-  font-size: 8px;
+  font-size: calc(8px * var(--invoice-scale));
   color: #0a3169;
   margin: 6px 0;
 }
 .bank p {
-  font-size: 7px;
+  font-size: calc(7px * var(--invoice-scale));
   line-height: 1.65;
   margin: 0;
 }
@@ -724,7 +741,7 @@ main {
   text-align: center;
 }
 .sign > p {
-  font-size: 7px;
+  font-size: calc(7px * var(--invoice-scale));
   font-weight: 700;
   margin: 0;
 }
@@ -752,7 +769,7 @@ main {
   z-index: 2;
 }
 .sign > b {
-  font-size: 7.5px;
+  font-size: calc(7.5px * var(--invoice-scale));
   border-top: 1px solid #748398;
   padding: 4px 17px;
 }
@@ -765,7 +782,7 @@ main {
   padding-top: 8px;
 }
 .invoice-sheet footer p {
-  font-size: 6.8px;
+  font-size: calc(6.8px * var(--invoice-scale));
   color: #697482;
   max-width: 68%;
   line-height: 1.45;
@@ -775,7 +792,7 @@ main {
   position: absolute;
   right: 0;
   bottom: 0;
-  font-size: 7px;
+  font-size: calc(7px * var(--invoice-scale));
   color: #0759b5;
   font-weight: 700;
 }

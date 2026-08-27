@@ -61,6 +61,7 @@ export async function PUT(req: Request) {
     );
     const vat = 0;
     const total = subtotal + vat;
+    const fontScale = Math.max(1, Math.min(1.25, number(b.fontScale) || 1.15));
     await ensureDatabase();
     const sql = db();
     let invoiceId = 0;
@@ -89,8 +90,8 @@ export async function PUT(req: Request) {
         if (duplicate.length) throw new Error("DUPLICATE_INVOICE_NUMBER");
       }
       const saved = existingDraft.length
-        ? await tx`UPDATE invoices SET customer_id=${customerId},bank_account_id=${b.bankAccountId || null},invoice_number=${b.invoiceNo},invoice_date=${b.date},due_date=${b.due || null},supplier_reference=${b.supplierReference || null},other_reference=${b.otherReference || null},currency=${b.currency},vat_mode='None',custom_vat_rate=0,subtotal=${subtotal},vat_total=0,total=${total},amount_words=${b.amountWords},include_signature=${!!b.includeSig},include_stamp=FALSE,updated_by=${a.user!.id},updated_at=NOW() WHERE id=${existingDraft[0].id} RETURNING id`
-        : await tx`INSERT INTO invoices(company_id,customer_id,bank_account_id,invoice_number,invoice_date,due_date,supplier_reference,other_reference,currency,vat_mode,custom_vat_rate,subtotal,vat_total,total,amount_words,status,include_signature,include_stamp,created_by,updated_by) VALUES(${company[0].id},${customerId},${b.bankAccountId || null},${b.invoiceNo},${b.date},${b.due || null},${b.supplierReference || null},${b.otherReference || null},${b.currency},'None',0,${subtotal},0,${total},${b.amountWords},'Draft',${!!b.includeSig},FALSE,${a.user!.id},${a.user!.id}) RETURNING id`;
+        ? await tx`UPDATE invoices SET customer_id=${customerId},bank_account_id=${b.bankAccountId || null},invoice_number=${b.invoiceNo},invoice_date=${b.date},due_date=${b.due || null},supplier_reference=${b.supplierReference || null},other_reference=${b.otherReference || null},currency=${b.currency},vat_mode='None',custom_vat_rate=0,font_scale=${fontScale},subtotal=${subtotal},vat_total=0,total=${total},amount_words=${b.amountWords},include_signature=${!!b.includeSig},include_stamp=FALSE,updated_by=${a.user!.id},updated_at=NOW() WHERE id=${existingDraft[0].id} RETURNING id`
+        : await tx`INSERT INTO invoices(company_id,customer_id,bank_account_id,invoice_number,invoice_date,due_date,supplier_reference,other_reference,currency,vat_mode,custom_vat_rate,font_scale,subtotal,vat_total,total,amount_words,status,include_signature,include_stamp,created_by,updated_by) VALUES(${company[0].id},${customerId},${b.bankAccountId || null},${b.invoiceNo},${b.date},${b.due || null},${b.supplierReference || null},${b.otherReference || null},${b.currency},'None',0,${fontScale},${subtotal},0,${total},${b.amountWords},'Draft',${!!b.includeSig},FALSE,${a.user!.id},${a.user!.id}) RETURNING id`;
       invoiceId = Number(saved[0].id);
       await tx`DELETE FROM invoice_items WHERE invoice_id=${invoiceId}`;
       for (let p = 0; p < items.length; p++) {

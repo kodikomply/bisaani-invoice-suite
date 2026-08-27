@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 type R = Record<string, any>;
 type Item = {
   id: number;
@@ -104,6 +104,7 @@ export function InvoiceWorkspace() {
     [supplierRef, setSupplierRef] = useState(""),
     [otherRef, setOtherRef] = useState(""),
     [currency, setCurrency] = useState("TZS"),
+    [fontScale, setFontScale] = useState(1.15),
     [signature, setSignature] = useState(true),
     [items, setItems] = useState<Item[]>([
       {
@@ -147,6 +148,7 @@ export function InvoiceWorkspace() {
         setSupplierRef(d.supplier_reference || "");
         setOtherRef(d.other_reference || "");
         setCurrency(d.currency);
+        setFontScale(Number(d.font_scale || 1.15));
         setSignature(d.include_signature);
         if (d.items?.length) setItems(d.items);
         setStatus("Draft loaded");
@@ -191,6 +193,7 @@ export function InvoiceWorkspace() {
     supplierReference: supplierRef,
     otherReference: otherRef,
     currency,
+    fontScale,
     includeSig: signature,
     items,
     amountWords: `${currency === "TZS" ? "Tanzanian Shillings" : "USD"} ${numberWords(total)} Only.`,
@@ -229,6 +232,7 @@ export function InvoiceWorkspace() {
     supplierRef,
     otherRef,
     currency,
+    fontScale,
     bankId,
     items,
     signature,
@@ -512,8 +516,23 @@ export function InvoiceWorkspace() {
         <section className="preview-pane">
           <div className="preview-label">
             <span>LIVE A4 PREVIEW</span>
+            <label className="font-control">
+              Invoice font
+              <select
+                aria-label="Invoice font size"
+                value={fontScale}
+                onChange={(e) => setFontScale(Number(e.target.value))}
+              >
+                <option value="1">Standard</option>
+                <option value="1.15">Large</option>
+                <option value="1.25">Extra large</option>
+              </select>
+            </label>
           </div>
-          <article className="invoice-sheet">
+          <article
+            className="invoice-sheet"
+            style={{ "--invoice-scale": fontScale } as CSSProperties}
+          >
             <div className="invoice-accent" />
             <header className="invoice-header">
               <div className="company">
