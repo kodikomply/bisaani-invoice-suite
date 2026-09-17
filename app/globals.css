@@ -553,6 +553,10 @@ main {
   padding: 7px;
   font-size: 9px;
 }
+.invoice-pages {
+  display: grid;
+  gap: 22px;
+}
 .invoice-sheet {
   --invoice-scale: 1.15;
   --invoice-print-scale: 1;
@@ -569,6 +573,29 @@ main {
   overflow: hidden;
   color: #1b2a3e;
   font-family: Arial, sans-serif;
+}
+.continuation-header {
+  align-items: center;
+  padding-bottom: 14px;
+  margin-bottom: 16px;
+}
+.continuation-header .company img {
+  width: 150px;
+  height: 42px;
+}
+.continuation-header .invoice-title h2 {
+  font-size: 15px;
+  letter-spacing: 1.5px;
+}
+.invoice-page-number {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 8px;
+  text-align: center;
+  color: #778395;
+  font-size: calc(6.5px * var(--invoice-effective-scale));
+  font-weight: 700;
 }
 .invoice-accent {
   height: 6px;
@@ -1324,6 +1351,9 @@ main {
     padding: 0 !important;
     margin: 0 !important;
   }
+  .invoice-pages {
+    display: block !important;
+  }
   .preview-pane,
   .workspace.edit .preview-pane,
   .workspace.preview .preview-pane {
@@ -1344,6 +1374,12 @@ main {
     margin: 0;
     padding: 12mm 10mm 8mm;
     overflow: visible;
+    break-after: page;
+    page-break-after: always;
+  }
+  .invoice-sheet:last-child {
+    break-after: auto;
+    page-break-after: auto;
   }
   .invoice-sheet table thead {
     display: table-header-group;

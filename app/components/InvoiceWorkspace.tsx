@@ -23,6 +23,42 @@ const units = [
 ];
 const fmt = (n: number, c: string) =>
   `${currencyLabel(c)} ${Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: c === "USD" ? 2 : 0, maximumFractionDigits: c === "USD" ? 2 : 0 })}`;
+function paginateItems(items: Item[], fontScale: number) {
+  const capacity = (base: number) =>
+    Math.max(2, Math.floor((base * 1.15) / fontScale));
+  const weight = (item: Item) => {
+    const text = item.description || "";
+    const lines = text.split(/\r?\n/).reduce((sum, line) => {
+      return sum + Math.max(1, Math.ceil(line.length / 48));
+    }, 0);
+    return Math.max(1, Math.min(6, lines));
+  };
+  const pages: Item[][] = [];
+  let cursor = 0;
+  while (cursor < items.length) {
+    const first = pages.length === 0;
+    const remainingWeight = items
+      .slice(cursor)
+      .reduce((sum, item) => sum + weight(item), 0);
+    const finalCapacity = capacity(first ? 5 : 7);
+    if (remainingWeight <= finalCapacity) {
+      pages.push(items.slice(cursor));
+      break;
+    }
+    const pageCapacity = capacity(first ? 10 : 14);
+    const page: Item[] = [];
+    let used = 0;
+    while (cursor < items.length) {
+      const next = weight(items[cursor]);
+      if (page.length && used + next > pageCapacity) break;
+      page.push(items[cursor]);
+      used += next;
+      cursor += 1;
+    }
+    pages.push(page);
+  }
+  return pages.length ? pages : [[]];
+}
 function numberWords(n: number): string {
   const a = [
       "",
@@ -266,6 +302,10 @@ export function InvoiceWorkspace() {
   };
   const upd = (id: number, k: keyof Item, v: any) =>
     setItems(items.map((i) => (i.id === id ? { ...i, [k]: v } : i)));
+  const invoicePages = useMemo(
+    () => paginateItems(items, fontScale),
+    [items, fontScale],
+  );
   return (
     <>
       <section className="actionbar">
@@ -529,134 +569,160 @@ export function InvoiceWorkspace() {
               </select>
             </label>
           </div>
-          <article
-            className="invoice-sheet"
-            style={{ "--invoice-scale": fontScale } as CSSProperties}
-          >
-            <div className="invoice-accent" />
-            <header className="invoice-header">
-              <div className="company">
-                <img src="/bisaani-logo.png" alt="Bisaani" />
-                <p>
-                  {company.postal_address}, {company.physical_location},{" "}
-                  {company.country}
-                  <br />
-                  TIN: {company.tin} · VRN: {company.vrn}
-                  <br />
-                  {company.email} · {company.phone}
-                </p>
-              </div>
-              <div className="invoice-title">
-                <h2>INVOICE</h2>
-                <span>#{invoiceNo}</span>
-              </div>
-            </header>
-            <div className="invoice-meta">
-              <div>
-                <label>BILL TO</label>
-                <h3>{customer || "Customer"}</h3>
-                <p>
-                  {address}
-                  <br />
-                  {physicalAddress}
-                  <br />
-                  TIN: {tin} · VRN: {vrn}
-                  <br />
-                  {email} {phone}
-                </p>
-              </div>
-              <div className="meta-grid">
-                <span>
-                  <label>Invoice date</label>
-                  <b>{date}</b>
-                </span>
-                <span>
-                  <label>Due date</label>
-                  <b>{due || "—"}</b>
-                </span>
-                <span>
-                  <label>Supplier reference</label>
-                  <b>{supplierRef || "—"}</b>
-                </span>
-                <span>
-                  <label>Other reference</label>
-                  <b>{otherRef || "—"}</b>
-                </span>
-              </div>
-            </div>
-            <table>
-              <thead>
-                <tr>
-                  <th>Description</th>
-                  <th>Qty</th>
-                  <th>Rate</th>
-                  <th>Per</th>
-                  <th>Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((i) => (
-                  <tr key={i.id}>
-                    <td>{i.description}</td>
-                    <td>{i.quantity}</td>
-                    <td>{i.rate}</td>
-                    <td>{i.per}</td>
-                    <td>{fmt(i.quantity * i.rate, currency)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <div className="invoice-summary">
-              <div />
-              <div>
-                <span>
-                  Subtotal<b>{fmt(subtotal, currency)}</b>
-                </span>
-                <strong>
-                  TOTAL<b>{fmt(total, currency)}</b>
-                </strong>
-              </div>
-            </div>
-            <div className="amount-words">
-              <label>AMOUNT IN WORDS</label>
-              <p>
-                {currency === "TZS" ? "Tanzanian Shillings" : "USD"}{" "}
-                {numberWords(total)} Only.
-              </p>
-            </div>
-            <div className="bank-sign">
-              <div className="bank">
-                <label>BANK / PAYMENT DETAILS</label>
-                {bank ? (
-                  <>
-                    <h4>{bank.bank_name}</h4>
-                    <p>
-                      <b>Account name</b> {bank.account_name}
-                      <br />
-                      <b>Account no.</b> {bank.account_number} {bank.currency}
-                      <br />
-                      <b>Branch</b> {bank.branch} · <b>SWIFT</b>{" "}
-                      {bank.swift_code}
-                    </p>
-                  </>
-                ) : (
-                  <p>No payment account selected.</p>
-                )}
-              </div>
-              <div className="sign">
-                <p>For {company.name}</p>
-                <div className="marks">
-                  {signature && <span className="signature">Authorized</span>}
-                </div>
-                <b>Authorized Signatory</b>
-              </div>
-            </div>
-            <footer>
-              <label>DECLARATION</label>
-              <p>{company.declaration}</p>
-              <span>Thank you for your business.</span>
-            </footer>
-          </article>
+          <div className="invoice-pages">
+            {invoicePages.map((pageItems, pageIndex) => {
+              const firstPage = pageIndex === 0;
+              const lastPage = pageIndex === invoicePages.length - 1;
+              return (
+                <article
+                  className="invoice-sheet"
+                  key={pageIndex}
+                  style={{ "--invoice-scale": fontScale } as CSSProperties}
+                >
+                  <div className="invoice-accent" />
+                  <header
+                    className={`invoice-header ${firstPage ? "" : "continuation-header"}`}
+                  >
+                    <div className="company">
+                      <img src="/bisaani-logo.png" alt="Bisaani" />
+                      {firstPage && (
+                        <p>
+                          {company.postal_address}, {company.physical_location},{" "}
+                          {company.country}
+                          <br />
+                          TIN: {company.tin} · VRN: {company.vrn}
+                          <br />
+                          {company.email} · {company.phone}
+                        </p>
+                      )}
+                    </div>
+                    <div className="invoice-title">
+                      <h2>{firstPage ? "INVOICE" : "CONTINUED"}</h2>
+                      <span>#{invoiceNo}</span>
+                    </div>
+                  </header>
+                  {firstPage && (
+                    <div className="invoice-meta">
+                      <div>
+                        <label>BILL TO</label>
+                        <h3>{customer || "Customer"}</h3>
+                        <p>
+                          {address}
+                          <br />
+                          {physicalAddress}
+                          <br />
+                          TIN: {tin} · VRN: {vrn}
+                          <br />
+                          {email} {phone}
+                        </p>
+                      </div>
+                      <div className="meta-grid">
+                        <span>
+                          <label>Invoice date</label>
+                          <b>{date}</b>
+                        </span>
+                        <span>
+                          <label>Due date</label>
+                          <b>{due || "—"}</b>
+                        </span>
+                        <span>
+                          <label>Supplier reference</label>
+                          <b>{supplierRef || "—"}</b>
+                        </span>
+                        <span>
+                          <label>Other reference</label>
+                          <b>{otherRef || "—"}</b>
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Description</th>
+                        <th>Qty</th>
+                        <th>Rate</th>
+                        <th>Per</th>
+                        <th>Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pageItems.map((i) => (
+                        <tr key={i.id}>
+                          <td>{i.description}</td>
+                          <td>{i.quantity}</td>
+                          <td>{i.rate}</td>
+                          <td>{i.per}</td>
+                          <td>{fmt(i.quantity * i.rate, currency)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {lastPage && (
+                    <>
+                      <div className="invoice-summary">
+                        <div />
+                        <div>
+                          <span>
+                            Subtotal<b>{fmt(subtotal, currency)}</b>
+                          </span>
+                          <strong>
+                            TOTAL<b>{fmt(total, currency)}</b>
+                          </strong>
+                        </div>
+                      </div>
+                      <div className="amount-words">
+                        <label>AMOUNT IN WORDS</label>
+                        <p>
+                          {currency === "TZS" ? "Tanzanian Shillings" : "USD"}{" "}
+                          {numberWords(total)} Only.
+                        </p>
+                      </div>
+                      <div className="bank-sign">
+                        <div className="bank">
+                          <label>BANK / PAYMENT DETAILS</label>
+                          {bank ? (
+                            <>
+                              <h4>{bank.bank_name}</h4>
+                              <p>
+                                <b>Account name</b> {bank.account_name}
+                                <br />
+                                <b>Account no.</b> {bank.account_number}{" "}
+                                {currencyLabel(bank.currency)}
+                                <br />
+                                <b>Branch</b> {bank.branch} · <b>SWIFT</b>{" "}
+                                {bank.swift_code}
+                              </p>
+                            </>
+                          ) : (
+                            <p>No payment account selected.</p>
+                          )}
+                        </div>
+                        <div className="sign">
+                          <p>For {company.name}</p>
+                          <div className="marks">
+                            {signature && (
+                              <span className="signature">Authorized</span>
+                            )}
+                          </div>
+                          <b>Authorized Signatory</b>
+                        </div>
+                      </div>
+                      <footer>
+                        <label>DECLARATION</label>
+                        <p>{company.declaration}</p>
+                        <span>Thank you for your business.</span>
+                      </footer>
+                    </>
+                  )}
+                  <div className="invoice-page-number">
+                    Page {pageIndex + 1} of {invoicePages.length}
+                    {!lastPage && " · Continued"}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
         </section>
       </div>
     </>
