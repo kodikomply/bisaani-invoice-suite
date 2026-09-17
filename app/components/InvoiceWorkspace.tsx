@@ -56,6 +56,10 @@ function paginateItems(items: Item[], fontScale: number) {
       cursor += 1;
     }
     pages.push(page);
+    // If a non-final page consumed every remaining item, add a dedicated
+    // final sheet so totals, payment details, declaration and signature
+    // are never forced into an already-full item page.
+    if (cursor === items.length) pages.push([]);
   }
   return pages.length ? pages : [[]];
 }
